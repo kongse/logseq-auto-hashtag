@@ -203,29 +203,32 @@ async function showSettings() {
 }
 
 // 主函数
-// 修改main函数，只从logseq.settings读取
+// 解析关键词设置
+function parseKeywords(settingsText) {
+  if (!settingsText) return defaultKeywords;
+  return settingsText.split('\n').filter(line => line.trim()).map(line => line.trim());
+}
+
+// 解析缩写设置
+function parseAbbreviations(settingsText) {
+  if (!settingsText) return defaultAbbreviations;
+  
+  const result = {};
+  settingsText.split('\n').forEach(line => {
+    const [key, value] = line.split('=').map(s => s.trim());
+    if (key && value) {
+      result[key] = value;
+    }
+  });
+  return result;
+}
+
+// 在main函数中使用
 function main() {
   console.log('🏷️ Auto Hashtag Plugin 已加载');
   
-  // 只从设置中加载关键词（移除文件读取）
-  const savedKeywords = logseq.settings?.keywords;
-  if (savedKeywords && Array.isArray(savedKeywords)) {
-    keywordList = savedKeywords;
-  } else {
-    keywordList = defaultKeywords;
-    // 初始化设置
-    logseq.updateSettings({ keywords: defaultKeywords });
-  }
-  
-  // 只从设置中加载缩写映射（移除文件读取）
-  const savedAbbreviations = logseq.settings?.abbreviations;
-  if (savedAbbreviations && typeof savedAbbreviations === 'object') {
-    abbreviationMap = savedAbbreviations;
-  } else {
-    abbreviationMap = defaultAbbreviations;
-    // 初始化设置
-    logseq.updateSettings({ abbreviations: defaultAbbreviations });
-  }
+  keywordList = parseKeywords(logseq.settings?.keywords);
+  abbreviationMap = parseAbbreviations(logseq.settings?.abbreviations);
   
   // 注册斜杠命令
   logseq.Editor.registerSlashCommand('Auto Hashtag', async () => {
@@ -304,22 +307,25 @@ function main() {
   });
   
   // 注册设置项
-  logseq.useSettingsSchema([
-    {
-      key: 'keywords',
-      type: 'object',
-      title: '关键词列表',
-      description: '用于自动添加标签的关键词',
-      default: defaultKeywords
-    },
-    {
-      key: 'abbreviations',
-      type: 'object',
-      title: '缩写映射',
-      description: '英文缩写到完整词语的映射',
-      default: defaultAbbreviations
-    }
-  ]);
+  // 修改设置架构，使用正确的数据类型
+logseq.useSettingsSchema([
+  {
+    key: 'keywords',
+    type: 'string',  // 改为string类型
+    inputAs: 'textarea',
+    title: '关键词列表',
+    description: '每行一个关键词',
+    default: defaultKeywords.join('\n')
+  },
+  {
+    key: 'abbreviations',
+    type: 'string',  // 改为string类型
+    inputAs: 'textarea', 
+    title: '缩写映射',
+    description: '格式：缩写=完整词语，每行一个',
+    default: Object.entries(defaultAbbreviations).map(([k,v]) => `${k}=${v}`).join('\n')
+  }
+]);
 }
 
 // 插件入口
@@ -374,7 +380,7 @@ logseq.App.registerCommandPalette({
   label: '🏷️ Auto Hashtag: 处理当前块',
   keybinding: {
     mode: 'global',
-    binding: navigator.platform.toLowerCase().includes('mac') ? 'cmd+shift+h' : 'ctrl+shift+h'
+    binding: navigator.platform.toLowerCase().includes('mac') ? 'cmd+j' : 'ctrl+j'
   }
 }, debouncedProcess);
 
