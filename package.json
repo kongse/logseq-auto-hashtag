@@ -1,0 +1,13 @@
+{
+  "name": "logseq-auto-hashtag",
+  "version": "1.0.0",
+  "description": "Auto add hashtags to predefined keywords",
+  "main": "index.js",
+  "author": "Your Name",
+  "license": "MIT",
+  "logseq": {
+    "id": "auto-hashtag",
+    "title": "Auto Hashtag",
+    "icon": "./icon.svg"
+  }
+}
