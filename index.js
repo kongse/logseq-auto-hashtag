@@ -1,5 +1,6 @@
 // ===== 2. index.js (主文件) =====
 let keywordList = [];
+let abbreviationMap = {}; // 新增：缩写映射
 
 // 默认关键词列表
 const defaultKeywords = [
@@ -8,6 +9,16 @@ const defaultKeywords = [
   '计划', '目标', '任务', '想法', '问题',
   'AI', '技术', '开发', '设计', '产品'
 ];
+
+// 默认缩写映射
+const defaultAbbreviations = {
+  "do": "Docusaurus",
+  "ob": "obsidian",
+  "lo": "logseq",
+  "js": "JavaScript",
+  "ts": "TypeScript",
+  "py": "Python"
+};
 
 // 从配置中加载关键词
 async function loadKeywords() {
@@ -20,32 +31,78 @@ async function loadKeywords() {
   }
 }
 
-// 处理文本，添加标签
-function processText(text) {
-  console.log('原始文本:', text);
-  console.log('关键词列表:', keywordList);
-  
-  if (!text || keywordList.length === 0) return text;
+// 新增：从配置中加载缩写映射
+async function loadAbbreviations() {
+  try {
+    const abbreviationsData = await fetch('./abbreviations.json').then(r => r.json());
+    abbreviationMap = abbreviationsData.abbreviations || defaultAbbreviations;
+  } catch (error) {
+    console.log('使用默认缩写映射');
+    abbreviationMap = defaultAbbreviations;
+  }
+}
+
+// 新增：处理缩写替换
+function processAbbreviations(text) {
+  if (!text || Object.keys(abbreviationMap).length === 0) return text;
   
   let processedText = text;
   
-  // 按关键词长度降序排序
-  const sortedKeywords = [...keywordList].sort((a, b) => b.length - a.length);
+  // 按缩写长度降序排序，优先匹配长缩写
+  const sortedAbbreviations = Object.keys(abbreviationMap).sort((a, b) => b.length - a.length);
   
-  sortedKeywords.forEach(keyword => {
-  // 简单替换：去掉词边界限制
-  const regex = new RegExp(escapeRegExp(keyword), 'g');
-  
-  processedText = processedText.replace(regex, (match, offset, string) => {
+  sortedAbbreviations.forEach(abbr => {
+    const fullForm = abbreviationMap[abbr];
+    // 匹配缩写：前面不是字母，后面是空格、标点或结尾
+    const regex = new RegExp(`(?<!\\w)${escapeRegExp(abbr)}(?=\\s|[.,!?;:"'()\\[\\]{}]|$)`, 'g');
+    
+    processedText = processedText.replace(regex, (match, offset, string) => {
       // 检查前面是否已经有 # 或 [[
       const before = string.substring(Math.max(0, offset - 3), offset);
       if (before.includes('#') || before.includes('[[')) {
         return match; // 不替换
       }
-      console.log('匹配到关键词:', match);
-      return `#${match} `; // 在这里加了空格
+      console.log('替换缩写:', match, '->', fullForm);
+      return fullForm;
     });
   });
+  
+  return processedText;
+}
+
+// 修改：处理文本，添加标签
+function processText(text) {
+  console.log('原始文本:', text);
+  console.log('关键词列表:', keywordList);
+  console.log('缩写映射:', abbreviationMap);
+  
+  if (!text) return text;
+  
+  let processedText = text;
+  
+  // 第一步：处理缩写替换
+  processedText = processAbbreviations(processedText);
+  
+  // 第二步：处理关键词标签
+  if (keywordList.length > 0) {
+    // 按关键词长度降序排序
+    const sortedKeywords = [...keywordList].sort((a, b) => b.length - a.length);
+    
+    sortedKeywords.forEach(keyword => {
+      // 简单的全局替换，但要避免重复标记
+      const regex = new RegExp(escapeRegExp(keyword), 'g');
+      
+      processedText = processedText.replace(regex, (match, offset, string) => {
+        // 检查前面是否已经有 # 或 [[
+        const before = string.substring(Math.max(0, offset - 3), offset);
+        if (before.includes('#') || before.includes('[[')) {
+          return match; // 不替换
+        }
+        console.log('匹配到关键词:', match);
+        return `#${match} `;
+      });
+    });
+  }
   
   console.log('处理后文本:', processedText);
   return processedText;
@@ -146,15 +203,28 @@ async function showSettings() {
 }
 
 // 主函数
+// 修改main函数，只从logseq.settings读取
 function main() {
   console.log('🏷️ Auto Hashtag Plugin 已加载');
   
-  // 从设置中加载关键词
+  // 只从设置中加载关键词（移除文件读取）
   const savedKeywords = logseq.settings?.keywords;
   if (savedKeywords && Array.isArray(savedKeywords)) {
     keywordList = savedKeywords;
   } else {
     keywordList = defaultKeywords;
+    // 初始化设置
+    logseq.updateSettings({ keywords: defaultKeywords });
+  }
+  
+  // 只从设置中加载缩写映射（移除文件读取）
+  const savedAbbreviations = logseq.settings?.abbreviations;
+  if (savedAbbreviations && typeof savedAbbreviations === 'object') {
+    abbreviationMap = savedAbbreviations;
+  } else {
+    abbreviationMap = defaultAbbreviations;
+    // 初始化设置
+    logseq.updateSettings({ abbreviations: defaultAbbreviations });
   }
   
   // 注册斜杠命令
@@ -241,10 +311,70 @@ function main() {
       title: '关键词列表',
       description: '用于自动添加标签的关键词',
       default: defaultKeywords
+    },
+    {
+      key: 'abbreviations',
+      type: 'object',
+      title: '缩写映射',
+      description: '英文缩写到完整词语的映射',
+      default: defaultAbbreviations
     }
   ]);
 }
 
 // 插件入口
 logseq.ready(main).catch(console.error);
+
+// 添加防抖函数
+function debounce(func, wait) {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+}
+
+// 创建防抖的处理函数
+const debouncedProcess = debounce(async () => {
+  if (isProcessing) return;
+  
+  isProcessing = true;
+  
+  try {
+    const block = await logseq.Editor.getCurrentBlock();
+    if (!block) {
+      logseq.UI.showMsg('请先选择一个块', 'warning');
+      return;
+    }
+    
+    const originalContent = block.content;
+    const processedContent = processText(originalContent);
+    
+    if (originalContent !== processedContent) {
+      await logseq.Editor.updateBlock(block.uuid, processedContent);
+      logseq.UI.showMsg('✅ 已添加标签！', 'success');
+    } else {
+      logseq.UI.showMsg('没有找到匹配的关键词', 'info');
+    }
+  } catch (error) {
+    console.error('Auto Hashtag 处理错误:', error);
+    logseq.UI.showMsg('处理失败', 'error');
+  } finally {
+    isProcessing = false;
+  }
+}, 150); // 150ms 防抖
+
+// 注册快捷键
+logseq.App.registerCommandPalette({
+  key: 'auto-hashtag-process',
+  label: '🏷️ Auto Hashtag: 处理当前块',
+  keybinding: {
+    mode: 'global',
+    binding: navigator.platform.toLowerCase().includes('mac') ? 'cmd+shift+h' : 'ctrl+shift+h'
+  }
+}, debouncedProcess);
 
