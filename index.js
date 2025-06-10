@@ -22,38 +22,38 @@ async function loadKeywords() {
 
 // 处理文本，添加标签
 function processText(text) {
+  console.log('原始文本:', text);
+  console.log('关键词列表:', keywordList);
+  
   if (!text || keywordList.length === 0) return text;
   
   let processedText = text;
   
-  // 按关键词长度降序排序，优先匹配长词，避免短词覆盖长词
+  // 按关键词长度降序排序
   const sortedKeywords = [...keywordList].sort((a, b) => b.length - a.length);
   
   sortedKeywords.forEach(keyword => {
-    // 创建正则表达式：
-    // (?<!#) - 负向后顾：前面不是#
-    // (?<!\[\[) - 负向后顾：前面不是[[
-    // \b - 词边界
-    // (?!\]\]) - 负向前瞻：后面不是]]
-    // \b - 词边界
-    const regex = new RegExp(`(?<!#)(?<!\
-$$
-\\[)\\b(${escapeRegExp(keyword)})\\b(?!\
-$$
-\\])`, 'gi');
-    
-    processedText = processedText.replace(regex, (match) => {
-      // 检查匹配的词是否已经在标签或链接中
-      return `#${match} `;
+  // 简单替换：去掉词边界限制
+  const regex = new RegExp(escapeRegExp(keyword), 'g');
+  
+  processedText = processedText.replace(regex, (match, offset, string) => {
+      // 检查前面是否已经有 # 或 [[
+      const before = string.substring(Math.max(0, offset - 3), offset);
+      if (before.includes('#') || before.includes('[[')) {
+        return match; // 不替换
+      }
+      console.log('匹配到关键词:', match);
+      return `#${match} `; // 在这里加了空格
     });
   });
   
+  console.log('处理后文本:', processedText);
   return processedText;
 }
 
 // 转义正则表达式特殊字符
 function escapeRegExp(string) {
-  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\__CODE_BLOCK_0__');
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 // 显示设置界面
@@ -181,13 +181,13 @@ function main() {
     }
   });
   
-  // 注册快捷键命令
+  // 注册快捷键命令（修复 process 错误）
   logseq.App.registerCommandPalette({
     key: 'auto-hashtag-process',
     label: '🏷️ Auto Hashtag: 处理当前块',
     keybinding: {
       mode: 'global',
-      binding: process.platform === 'darwin' ? 'cmd+shift+h' : 'ctrl+shift+h'
+      binding: navigator.platform.toLowerCase().includes('mac') ? 'cmd+shift+h' : 'ctrl+shift+h'
     }
   }, async () => {
     try {
