@@ -88,8 +88,11 @@ function processText(text) {
     // 按关键词长度降序排序
     const sortedKeywords = [...keywordList].sort((a, b) => b.length - a.length);
     
-    // 修改 processText 函数中的关键词处理部分
+    // 记录已经被匹配的位置范围，防止重复匹配
+    const matchedRanges = [];
+    
     sortedKeywords.forEach(keyword => {
+      // 每次都创建新的正则表达式对象，避免状态污染
       let regex;
       
       // 检查是否为纯英文关键词
@@ -101,15 +104,49 @@ function processText(text) {
         regex = new RegExp(escapeRegExp(keyword), 'g');
       }
       
-      processedText = processedText.replace(regex, (match, offset, string) => {
+      let match;
+      const replacements = [];
+      
+      // 使用 while 循环找到所有匹配位置
+      while ((match = regex.exec(processedText)) !== null) {
+        const start = match.index;
+        const end = start + match[0].length;
+        
         // 检查前面是否已经有 # 或 [[
-        const before = string.substring(Math.max(0, offset - 3), offset);
+        const before = processedText.substring(Math.max(0, start - 3), start);
         if (before.includes('#') || before.includes('[[')) {
-          return match; // 不替换
+          continue; // 跳过已有标签的匹配
         }
-        console.log('匹配到关键词:', match);
-        return `#${match} `;
+        
+        // 检查这个位置是否已经被更长的关键词匹配过
+        const isOverlapping = matchedRanges.some(range => 
+          (start >= range.start && start < range.end) || 
+          (end > range.start && end <= range.end) ||
+          (start <= range.start && end >= range.end)
+        );
+        
+        if (!isOverlapping) {
+          replacements.push({ start, end, match: match[0] });
+          matchedRanges.push({ start, end });
+        }
+        
+        // 防止无限循环：如果匹配长度为0，手动推进位置
+        if (match[0].length === 0) {
+          regex.lastIndex++;
+        }
+      }
+      
+      // 从后往前替换，避免位置偏移
+      replacements.reverse().forEach(replacement => {
+        console.log('匹配到关键词:', replacement.match);
+        const before = processedText.substring(0, replacement.start);
+        const after = processedText.substring(replacement.end);
+        processedText = before + `#${replacement.match} ` + after;
       });
+      
+      // 显式清理：重置正则表达式状态（虽然每次都是新对象，但保险起见）
+      regex.lastIndex = 0;
+      regex = null; // 帮助垃圾回收
     });
   }
   
