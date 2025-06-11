@@ -1,7 +1,7 @@
 // ===== 2. index.js (主文件) =====
 let keywordList = [];
 let abbreviationMap = {}; // 新增：缩写映射
-
+let isProcessing = false;
 // 默认关键词列表
 const defaultKeywords = [
   '项目管理', 'JavaScript', 'React', 'Vue', 'Python',
@@ -191,7 +191,7 @@ async function showSettings() {
         <strong>使用说明：</strong><br>
         1. 修改关键词后点击"保存"<br>
         2. 在编辑块中输入文本后，使用 <code>/Auto Hashtag</code> 命令<br>
-        3. 或使用快捷键 <code>Ctrl+Shift+H</code> (Mac: Cmd+Shift+H)<br>
+        3. 或使用快捷键 <code>Ctrl+J</code> (Mac: Cmd+J)<br>
         4. 关键词会自动转换为 #标签 格式
       </div>
     </div>
