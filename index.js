@@ -306,7 +306,7 @@ function main() {
     label: '🏷️ Auto Hashtag: 处理当前块',
     keybinding: {
       mode: 'global',
-      binding: navigator.platform.toLowerCase().includes('mac') ? 'cmd+shift+h' : 'ctrl+shift+h'
+      binding: navigator.platform.toLowerCase().includes('mac') ? 'cmd+j' : 'ctrl+j'
     }
   }, async () => {
     try {
