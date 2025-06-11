@@ -88,9 +88,18 @@ function processText(text) {
     // 按关键词长度降序排序
     const sortedKeywords = [...keywordList].sort((a, b) => b.length - a.length);
     
+    // 修改 processText 函数中的关键词处理部分
     sortedKeywords.forEach(keyword => {
-      // 简单的全局替换，但要避免重复标记
-      const regex = new RegExp(escapeRegExp(keyword), 'g');
+      let regex;
+      
+      // 检查是否为纯英文关键词
+      if (/^[a-zA-Z]+$/.test(keyword)) {
+        // 纯英文关键词：使用单词边界
+        regex = new RegExp(`\\b${escapeRegExp(keyword)}\\b`, 'g');
+      } else {
+        // 非英文关键词（中文、数字、混合等）：不使用单词边界
+        regex = new RegExp(escapeRegExp(keyword), 'g');
+      }
       
       processedText = processedText.replace(regex, (match, offset, string) => {
         // 检查前面是否已经有 # 或 [[
