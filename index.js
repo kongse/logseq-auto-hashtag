@@ -70,6 +70,53 @@ function processAbbreviations(text) {
   return processedText;
 }
 
+// 新增：检测并收集当前块中的#关键词
+function detectAndCollectHashtags(text) {
+  if (!text) return { newKeywords: [], processedText: text };
+  
+  // 匹配 #关键词 格式（不包括已经是 [[]] 格式的）
+  const hashtagRegex = /#([^\s#\[\]]+)/g;
+  const foundHashtags = [];
+  const newKeywords = [];
+  let match;
+  
+  // 收集所有的 #关键词
+  while ((match = hashtagRegex.exec(text)) !== null) {
+    const keyword = match[1];
+    foundHashtags.push({
+      fullMatch: match[0], // 包含#的完整匹配
+      keyword: keyword,   // 不包含#的关键词
+      index: match.index
+    });
+    
+    // 如果关键词不在当前列表中，添加到新关键词列表
+    if (!keywordList.includes(keyword) && !newKeywords.includes(keyword)) {
+      newKeywords.push(keyword);
+    }
+  }
+  
+  // 将新关键词添加到关键词列表
+  if (newKeywords.length > 0) {
+    keywordList.push(...newKeywords);
+    console.log('发现新关键词:', newKeywords);
+    console.log('更新后的关键词列表:', keywordList);
+    
+    // 保存到设置中
+    logseq.updateSettings({ keywords: keywordList.join('\n') });
+  }
+  
+  // 将 #关键词 替换为 [[关键词]]
+  let processedText = text;
+  // 从后往前替换，避免位置偏移
+  foundHashtags.reverse().forEach(hashtag => {
+    const before = processedText.substring(0, hashtag.index);
+    const after = processedText.substring(hashtag.index + hashtag.fullMatch.length);
+    processedText = before + `[[${hashtag.keyword}]]` + after;
+  });
+  
+  return { newKeywords, processedText };
+}
+
 // 修改：处理文本，添加标签
 function processText(text) {
   console.log('原始文本:', text);
@@ -80,10 +127,14 @@ function processText(text) {
   
   let processedText = text;
   
-  // 第一步：处理缩写替换
+  // 第一步：检测并收集#关键词，替换为[[关键词]]
+  const hashtagResult = detectAndCollectHashtags(processedText);
+  processedText = hashtagResult.processedText;
+  
+  // 第二步：处理缩写替换
   processedText = processAbbreviations(processedText);
   
-  // 第二步：处理关键词标签
+  // 第三步：处理关键词标签
   if (keywordList.length > 0) {
     // 按关键词长度降序排序
     const sortedKeywords = [...keywordList].sort((a, b) => b.length - a.length);
@@ -274,13 +325,23 @@ function main() {
       }
       
       const originalContent = block.content;
+      
+      // 先检测#关键词
+      const hashtagResult = detectAndCollectHashtags(originalContent);
       const processedContent = processText(originalContent);
       
       if (originalContent !== processedContent) {
         await logseq.Editor.updateBlock(block.uuid, processedContent);
-        logseq.UI.showMsg('✅ 已添加标签！', 'success');
+        
+        // 构建成功消息
+        let message = '✅ 处理完成！';
+        if (hashtagResult.newKeywords.length > 0) {
+          message += ` 新增关键词: ${hashtagResult.newKeywords.join(', ')}`;
+        }
+        
+        logseq.UI.showMsg(message, 'success');
       } else {
-        logseq.UI.showMsg('没有找到匹配的关键词', 'info');
+        logseq.UI.showMsg('没有找到匹配的关键词或#标签', 'info');
       }
     } catch (error) {
       console.error(error);
@@ -305,13 +366,23 @@ function main() {
       }
       
       const originalContent = block.content;
+      
+      // 先检测#关键词
+      const hashtagResult = detectAndCollectHashtags(originalContent);
       const processedContent = processText(originalContent);
       
       if (originalContent !== processedContent) {
         await logseq.Editor.updateBlock(block.uuid, processedContent);
-        logseq.UI.showMsg('✅ 已添加标签！', 'success');
+        
+        // 构建成功消息
+        let message = '✅ 处理完成！';
+        if (hashtagResult.newKeywords.length > 0) {
+          message += ` 新增关键词: ${hashtagResult.newKeywords.join(', ')}`;
+        }
+        
+        logseq.UI.showMsg(message, 'success');
       } else {
-        logseq.UI.showMsg('没有找到匹配的关键词', 'info');
+        logseq.UI.showMsg('没有找到匹配的关键词或#标签', 'info');
       }
     } catch (error) {
       console.error(error);
@@ -378,6 +449,9 @@ function debounce(func, wait) {
   };
 }
 
+// 防止重复处理的标志
+let isProcessing = false;
+
 // 创建防抖的处理函数
 const debouncedProcess = debounce(async () => {
   if (isProcessing) return;
@@ -392,13 +466,23 @@ const debouncedProcess = debounce(async () => {
     }
     
     const originalContent = block.content;
+    
+    // 先检测#关键词
+    const hashtagResult = detectAndCollectHashtags(originalContent);
     const processedContent = processText(originalContent);
     
     if (originalContent !== processedContent) {
       await logseq.Editor.updateBlock(block.uuid, processedContent);
-      logseq.UI.showMsg('✅ 已添加标签！', 'success');
+      
+      // 构建成功消息
+      let message = '✅ 处理完成！';
+      if (hashtagResult.newKeywords.length > 0) {
+        message += ` 新增关键词: ${hashtagResult.newKeywords.join(', ')}`;
+      }
+      
+      logseq.UI.showMsg(message, 'success');
     } else {
-      logseq.UI.showMsg('没有找到匹配的关键词', 'info');
+      logseq.UI.showMsg('没有找到匹配的关键词或#标签', 'info');
     }
   } catch (error) {
     console.error('Auto Hashtag 处理错误:', error);
