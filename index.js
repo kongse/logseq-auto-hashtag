@@ -141,7 +141,7 @@ function processText(text) {
         console.log('匹配到关键词:', replacement.match);
         const before = processedText.substring(0, replacement.start);
         const after = processedText.substring(replacement.end);
-        processedText = before + `#${replacement.match} ` + after;
+        processedText = before + ` [[${replacement.match}]] ` + after;
       });
       
       // 显式清理：重置正则表达式状态（虽然每次都是新对象，但保险起见）
@@ -172,7 +172,7 @@ async function showSettings() {
         </label>
         <textarea 
           id="keywords-textarea" 
-          style="width: 100%; height: 300px; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace;"
+          style="width: 100%; height: 600px; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace;"
           placeholder="请输入关键词，每行一个&#10;例如：&#10;JavaScript&#10;React&#10;项目管理"
         >${currentKeywords}</textarea>
       </div>
@@ -200,19 +200,7 @@ async function showSettings() {
   const rect = document.querySelector('#app')?.getBoundingClientRect();
   const modal = Object.assign(document.createElement('div'), {
     innerHTML: html,
-    style: `
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: white;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-      z-index: 999999;
-      max-width: 500px;
-      width: 90%;
-    `
+    className: 'auto-hashtag-modal'
   });
   
   document.body.appendChild(modal);
