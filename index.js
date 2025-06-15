@@ -210,82 +210,7 @@ function escapeRegExp(string) {
   return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-// 显示设置界面
-async function showSettings() {
-  const currentKeywords = keywordList.join('\n');
-  
-  const html = `
-    <div style="padding: 20px;">
-      <h3>Auto Hashtag 设置</h3>
-      <div style="margin-bottom: 15px;">
-        <label style="display: block; margin-bottom: 8px; font-weight: bold;">
-          关键词列表（每行一个）:
-        </label>
-        <textarea 
-          id="keywords-textarea" 
-          style="width: 100%; height: 600px; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace;"
-          placeholder="请输入关键词，每行一个&#10;例如：&#10;JavaScript&#10;React&#10;项目管理"
-        >${currentKeywords}</textarea>
-      </div>
-      <div style="margin-bottom: 15px;">
-        <button id="save-keywords" style="background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin-right: 10px;">
-          保存
-        </button>
-        <button id="reset-keywords" style="background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin-right: 10px;">
-          重置为默认
-        </button>
-        <button id="close-settings" style="background: #6b7280; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
-          关闭
-        </button>
-      </div>
-      <div style="background: #f3f4f6; padding: 15px; border-radius: 4px; font-size: 14px;">
-        <strong>使用说明：</strong><br>
-        1. 修改关键词后点击"保存"<br>
-        2. 在编辑块中输入文本后，使用 <code>/Auto Hashtag</code> 命令<br>
-        3. 或使用快捷键 <code>Ctrl+J</code> (Mac: Cmd+J)<br>
-        4. 关键词会自动转换为 #标签 格式
-      </div>
-    </div>
-  `;
-  
-  const rect = document.querySelector('#app')?.getBoundingClientRect();
-  const modal = Object.assign(document.createElement('div'), {
-    innerHTML: html,
-    className: 'auto-hashtag-modal'
-  });
-  
-  document.body.appendChild(modal);
-  
-  // 绑定事件
-  modal.querySelector('#save-keywords').onclick = () => {
-    const textarea = modal.querySelector('#keywords-textarea');
-    const newKeywords = textarea.value
-      .split('\n')
-      .map(k => k.trim())
-      .filter(k => k.length > 0);
-    
-    keywordList = newKeywords;
-    logseq.updateSettings({ keywords: newKeywords });
-    logseq.UI.showMsg('关键词已保存！', 'success');
-    document.body.removeChild(modal);
-  };
-  
-  modal.querySelector('#reset-keywords').onclick = () => {
-    const textarea = modal.querySelector('#keywords-textarea');
-    textarea.value = defaultKeywords.join('\n');
-  };
-  
-  modal.querySelector('#close-settings').onclick = () => {
-    document.body.removeChild(modal);
-  };
-  
-  // 点击外部关闭
-  modal.onclick = (e) => {
-    if (e.target === modal) {
-      document.body.removeChild(modal);
-    }
-  };
-}
+
 
 // 主函数
 // 解析关键词设置
@@ -390,26 +315,7 @@ function main() {
     }
   });
   
-  // 注册设置命令
-  logseq.App.registerCommandPalette({
-    key: 'auto-hashtag-settings',
-    label: '🏷️ Auto Hashtag: 设置关键词'
-  }, showSettings);
-  
-  // 添加工具栏按钮
-  logseq.App.registerUIItem('toolbar', {
-    key: 'auto-hashtag-toolbar',
-    template: `
-      <a class="button" data-on-click="showAutoHashtagSettings" title="Auto Hashtag 设置">
-        <span style="font-size: 16px;">🏷️</span>
-      </a>
-    `
-  });
-  
-  // 绑定工具栏点击事件
-  logseq.provideModel({
-    showAutoHashtagSettings: showSettings
-  });
+
   
   // 注册设置项
   // 修改设置架构，使用正确的数据类型
@@ -431,6 +337,15 @@ logseq.useSettingsSchema([
     default: Object.entries(defaultAbbreviations).map(([k,v]) => `${k}=${v}`).join('\n')
   }
 ]);
+
+  // 添加自定义CSS来控制textarea高度
+  logseq.provideStyle(`
+    .cp__settings-inner textarea {
+      min-height: 200px !important;
+      height: 500px !important;
+      resize: vertical !important;
+    }
+  `);
 }
 
 // 插件入口
