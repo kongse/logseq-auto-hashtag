@@ -12,7 +12,7 @@ const defaultKeywords = [
 
 // 默认缩写映射
 const defaultAbbreviations = {
-  "do": "Docusaurus",
+  "do": "docusaurus",
   "ob": "obsidian",
   "lo": "logseq",
   "js": "JavaScript",
@@ -449,9 +449,6 @@ function debounce(func, wait) {
   };
 }
 
-// 防止重复处理的标志
-let isProcessing = false;
-
 // 创建防抖的处理函数
 const debouncedProcess = debounce(async () => {
   if (isProcessing) return;
@@ -491,14 +488,4 @@ const debouncedProcess = debounce(async () => {
     isProcessing = false;
   }
 }, 150); // 150ms 防抖
-
-// 注册快捷键
-logseq.App.registerCommandPalette({
-  key: 'auto-hashtag-process',
-  label: '🏷️ Auto Hashtag: 处理当前块',
-  keybinding: {
-    mode: 'global',
-    binding: navigator.platform.toLowerCase().includes('mac') ? 'cmd+j' : 'ctrl+j'
-  }
-}, debouncedProcess);
 
