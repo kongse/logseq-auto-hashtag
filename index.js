@@ -75,7 +75,8 @@ function detectAndCollectHashtags(text) {
   if (!text) return { newKeywords: [], processedText: text };
   
   // 匹配 #关键词 格式（不包括已经是 [[]] 格式的）
-  const hashtagRegex = /#([^\s#\[\]]+)/g;
+  // 修改正则表达式以支持行首行尾的#keyword
+  const hashtagRegex = /(?:^|\s)#([^\s#\[\]]+)(?=\s|$|[^\w])/g;
   const foundHashtags = [];
   const newKeywords = [];
   let match;
@@ -83,10 +84,12 @@ function detectAndCollectHashtags(text) {
   // 收集所有的 #关键词
   while ((match = hashtagRegex.exec(text)) !== null) {
     const keyword = match[1];
+    // 计算#的实际位置（排除可能的前导空格）
+    const hashIndex = match[0].indexOf('#') + match.index;
     foundHashtags.push({
-      fullMatch: match[0], // 包含#的完整匹配
+      fullMatch: `#${keyword}`, // 只包含#和关键词的部分
       keyword: keyword,   // 不包含#的关键词
-      index: match.index
+      index: hashIndex
     });
     
     // 如果关键词不在当前列表中，添加到新关键词列表
